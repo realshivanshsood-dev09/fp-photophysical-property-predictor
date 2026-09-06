@@ -1,0 +1,31 @@
+# Primary v1 scope.  The public FPbase GraphQL schema has no lineage edges;
+# group control is therefore sequence-based unless a verified sidecar is given.
+scope: all_families
+state_policy: default_only
+lineage_sidecar: null
+# Conservative leakage safeguard for point-mutant series.  It groups only
+# equal-length sequences with positional identity >= this value; it is not a
+# substitute for verified FPbase lineage information.
+near_duplicate_identity: 0.95
+
+target:
+  name: brightness
+  task: classification
+  n_classes: 3
+  threshold_strategy: fold_train_tertiles
+
+features:
+  name: composition
+  version: "1.0"
+
+split:
+  strategy: sequence_neighborhood_group_kfold
+  folds: 5
+  seed: 42
+
+models:
+  - majority
+  - stratified_random
+  - logistic_regression
+  - random_forest
+  - gradient_boosting

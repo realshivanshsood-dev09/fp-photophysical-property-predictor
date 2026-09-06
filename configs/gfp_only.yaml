@@ -1,0 +1,7 @@
+# Exploratory sensitivity analysis only: FPbase's public retrieval contains no
+# authoritative GFP-family field, so this uses the documented name/alias
+# heuristic.  Three folds are used because 95%-identity sequence-neighbour
+# grouping leaves nine groups, making five-fold results excessively sparse.
+scope: gfp_only
+split:
+  folds: 3

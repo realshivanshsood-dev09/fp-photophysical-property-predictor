@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fp-photophysics-predictor"
+version = "0.1.0"
+description = "Leakage-aware fluorescent-protein brightness-tier prediction from sequence-derived features"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "FP Photophysics Predictor contributors"}]
+dependencies = [
+  "joblib>=1.3,<2",
+  "numpy>=1.24,<3",
+  "pandas>=2.0,<3",
+  "PyYAML>=6.0,<7",
+  "requests>=2.31,<3",
+  "scikit-learn>=1.3,<2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+
+[project.scripts]
+fp-predictor = "fp_predictor.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
