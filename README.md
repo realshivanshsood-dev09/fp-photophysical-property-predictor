@@ -40,13 +40,13 @@ Default leakage-control groups are connected components of:
 1. exact amino-acid sequence identity; and
 2. same-length sequence pairs with positional identity at least 95%.
 
-The second rule is configurable through `near_duplicate_identity` and is independent of brightness labels. Connected components are intentional: if A is sufficiently similar to B and B to C, all three are held together even when A and C do not directly meet the threshold. This conservative point-mutant safeguard found 3,120 pairs involving 465 of 601 observations in the current all-family snapshot. It catches same-length variant series, but is **not** a substitute for ancestry and does not catch indel-containing relatives.
+The second rule is configurable through `near_duplicate_identity` and is independent of brightness labels. Connected components are intentional: if A is sufficiently similar to B and B to C, all three are held together even when A and C do not directly meet the threshold. This conservative point-mutant safeguard found 3,120 pairs involving 465 of 601 observations in the current all-family snapshot. It catches same-length variant series, but is **not** a substitute for ancestry or comprehensive homology control: it performs no alignment, does not group unequal-length homologues, and does not make the 215 groups biologically independent lineages.
 
 An optional verified `child_id,parent_id` CSV sidecar can merge explicit ancestry groups with sequence groups. It rejects multiple parents, handles missing ancestors deterministically, and detects cycles. Without a sidecar, the correct description is *sequence-neighborhood grouped CV*.
 
 ## Features and target-leakage boundary
 
-The model matrix has 39 deterministic sequence-only features:
+The model matrix has 39 deterministic sequence-only features (feature version 1.1):
 
 - 20 amino-acid frequencies and length;
 - acidic, basic, charged, polar, nonpolar, hydrophobic, and aromatic fractions;
@@ -59,7 +59,7 @@ Brightness, EC, QY, EC×QY, spectral maxima, lifetime, maturation, pKa, cofactor
 
 ## Evaluation protocol and results
 
-`LOW`, `MEDIUM`, and `HIGH` are operational training-distribution tertiles, not biological brightness classes. In every fold, the two thresholds are fit only to that fold’s training brightness values and then applied to validation records. Final deployment thresholds are fit once on the designated complete training data and saved in the artifact.
+`LOW`, `MEDIUM`, and `HIGH` are operational training-distribution tertiles, not biological brightness classes. Brightness remains continuous; classification imposes dataset-derived boundaries on a noisy continuous measurement and can create boundary effects. In every fold, the two thresholds are fit only to that fold’s training brightness values and then applied to validation records. Final deployment thresholds are fit once on the designated complete training data and saved in the artifact. Regression or ranking on continuous brightness is a v2 direction, not part of this benchmark.
 
 Folds allocate whole sequence-neighborhood groups with a seeded, sample-count-balanced `sequence_neighborhood_group_kfold` algorithm; brightness is not used to construct folds. The code asserts no train/validation group overlap. Scaling is inside the logistic-regression pipeline. Majority and stratified-random baselines use training labels only.
 
@@ -71,11 +71,11 @@ The validated all-family 5-fold run (`601` observations; `215` groups; class cou
 | Stratified random | 0.313 ± 0.044 | 0.318 ± 0.046 | 0.318 ± 0.042 |
 | Logistic regression | 0.440 ± 0.036 | 0.453 ± 0.034 | 0.476 ± 0.044 |
 | Random forest | 0.520 ± 0.045 | 0.525 ± 0.046 | 0.551 ± 0.022 |
-| Gradient boosting | 0.459 ± 0.048 | 0.470 ± 0.047 | 0.484 ± 0.055 |
+| Gradient boosting | 0.454 ± 0.048 | 0.466 ± 0.045 | 0.479 ± 0.058 |
 
-Random forest is selected for that run: it is the only learned model within one top-model standard deviation under the stored model-selection policy. Per-fold precision, recall, F1, supports, aggregate per-class summaries, and confusion matrices are saved in the run directory. These results are modest exploratory associations, not a generalizable biological-performance claim.
+Random forest is selected for that run: it is the only learned model within one top-model standard deviation under the stored model-selection policy. Per-fold precision, recall, F1, supports, aggregate per-class summaries, and confusion matrices are saved in the run directory. The result is exploratory evidence of signal under this particular sequence-neighborhood grouped CV—not evidence of performance on homology-separated or novel FP scaffolds, universal mechanistic prediction across FP families, or prospective FP-design utility.
 
-The validated artifacts are [`results/all_families/run_20260906T143034Z`](results/all_families/run_20260906T143034Z) and the GFP sensitivity run [`results/gfp_only/run_20260906T143115Z`](results/gfp_only/run_20260906T143115Z).
+The validated artifacts are [`results/all_families/run_20260906T150216Z`](results/all_families/run_20260906T150216Z) and the GFP sensitivity run [`results/gfp_only/run_20260906T150237Z`](results/gfp_only/run_20260906T150237Z).
 
 The GFP-name sensitivity analysis has 30 observations but only 9 sequence-neighborhood groups. It uses 3 grouped folds because 5 folds would produce 3–10-observation validation folds with absent classes. Its results are too sparse for meaningful model selection and should not be compared directly with the all-family experiment:
 
@@ -87,7 +87,7 @@ The GFP-name sensitivity analysis has 30 observations but only 9 sequence-neighb
 | Random forest | 0.209 ± 0.105 | 0.327 ± 0.237 | 0.333 ± 0.170 |
 | Gradient boosting | 0.291 ± 0.079 | 0.453 ± 0.187 | 0.467 ± 0.125 |
 
-`predict_proba` output is a predicted class probability, not calibrated confidence; it has not undergone held-out calibration validation.
+`predict_proba` output is an uncalibrated model class probability (for random forest, a tree-vote fraction), not calibrated confidence; it has not undergone held-out calibration validation.
 
 ## Installation and use
 
@@ -128,4 +128,4 @@ FPredX is Tam C, Zhang KYJ, *FPredX: Interpretable models for the prediction of 
 
 ## Limitations and next step
 
-FPbase aggregates measurements from heterogeneous experimental contexts; cofactors, pH, maturation, oligomerization, and chromophore structure are not represented in a sequence-only input. Similarity grouping leaves unresolved ancestry and indel-related leakage. The all-family cohort mixes FP classes, and the GFP cohort is heuristic and too small. V1 is engineering-complete and scientifically honest as a sequence-neighborhood-controlled exploratory baseline. The highest-value next step is a verified FPbase lineage/family export, not a larger model or a structure-prediction system.
+FPbase aggregates measurements from heterogeneous experimental contexts; cofactors, pH, maturation, oligomerization, chromophore chemistry, and structural architecture are not represented in a sequence-only global input. The all-family primary cohort deliberately pools proteins that can differ in these mechanisms, so this experiment does not establish universal mechanistic prediction across FP families. Similarity grouping leaves unresolved ancestry, broader homology, and indel-related leakage. The GFP cohort is a small, heuristic sensitivity analysis and is underpowered for GFP-specific conclusions. V1 is engineering-complete and scientifically honest as a sequence-neighborhood-controlled exploratory baseline. The highest-value next step is a verified FPbase lineage/family export, followed by a stronger homology-aware evaluation—not a larger model or a structure-prediction system.

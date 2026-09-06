@@ -20,7 +20,7 @@ from .features import CompositionFeaturizer
 from .models import make_model, model_parameters, predict_proba_aligned
 from .split import grouped_folds
 
-ARTIFACT_VERSION = "1"
+ARTIFACT_VERSION = "2"
 MODEL_COMPLEXITY_ORDER = {
     "majority": 0, "stratified_random": 0, "logistic_regression": 1,
     "gradient_boosting": 2, "random_forest": 3,

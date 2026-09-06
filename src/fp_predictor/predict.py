@@ -10,6 +10,7 @@ import pandas as pd
 
 from .clean import CleaningError, normalize_sequence
 from .evaluate import CLASS_NAMES
+from .features import CompositionFeaturizer
 from .models import predict_proba_aligned
 from .train import ARTIFACT_VERSION
 
@@ -73,7 +74,7 @@ def load_artifact(path: str | Path) -> dict:
         raise PredictionError("Model artifact is incomplete or incompatible.")
     if artifact["artifact_version"] != ARTIFACT_VERSION:
         raise PredictionError("Model artifact version is incompatible with this CLI.")
-    if artifact["feature_version"] != "1.0":
+    if artifact["feature_version"] != CompositionFeaturizer.feature_version:
         raise PredictionError("Model artifact uses an incompatible feature version.")
     if artifact["class_names"] != list(CLASS_NAMES):
         raise PredictionError("Model artifact has an incompatible class mapping.")

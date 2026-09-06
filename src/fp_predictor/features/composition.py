@@ -22,6 +22,8 @@ RESIDUE_MASS = {
     "M": 131.1926, "N": 114.1038, "P": 97.1167, "Q": 128.1307, "R": 156.1875,
     "S": 87.0782, "T": 101.1051, "V": 99.1326, "W": 186.2132, "Y": 163.1760,
 }
+N_TERMINUS_PKA = 9.69
+C_TERMINUS_PKA = 2.34
 
 
 def _iter_sequences(X: Iterable[str]) -> list[str]:
@@ -33,9 +35,14 @@ def _iter_sequences(X: Iterable[str]) -> list[str]:
 
 
 def _charge_at_ph(sequence: str, ph: float) -> float:
-    # Henderson-Hasselbalch proxy, pKa values from standard educational tables.
-    positive = 1 / (1 + 10 ** (ph - 9.69)) + 1 / (1 + 10 ** (ph - 8.0))
-    negative = 1 / (1 + 10 ** (2.34 - ph)) + 1 / (1 + 10 ** (3.1 - ph))
+    """Return a sequence-only Henderson-Hasselbalch net-charge proxy.
+
+    A linear polypeptide contributes exactly one N terminus and one C terminus.
+    Residue counts below represent side chains only; they must not be used as
+    additional terminal terms.
+    """
+    positive = 1 / (1 + 10 ** (ph - N_TERMINUS_PKA))
+    negative = 1 / (1 + 10 ** (C_TERMINUS_PKA - ph))
     positive += sequence.count("K") / (1 + 10 ** (ph - 10.5))
     positive += sequence.count("R") / (1 + 10 ** (ph - 12.4))
     positive += sequence.count("H") / (1 + 10 ** (ph - 6.0))
@@ -60,7 +67,7 @@ def _estimated_pi(sequence: str) -> float:
 class CompositionFeaturizer(BaseEstimator, TransformerMixin):
     """Sklearn-compatible sequence-only descriptors; no FPbase measurements enter X."""
 
-    feature_version = "1.0"
+    feature_version = "1.1"
 
     def fit(self, X: Iterable[str], y=None):  # noqa: D401 - sklearn signature
         self.feature_names_in_ = np.array(self.get_feature_names_out(), dtype=object)
