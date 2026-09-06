@@ -99,6 +99,35 @@ def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+
+DEFAULT_V3_AEQUOREA_DIAGNOSTIC_CONFIG: dict[str, Any] = {
+    "experiment": "v3_aequorea_diagnostic",
+    "scope": "aequorea_cluster_only",
+    "target_cluster_id": "cluster:WQUOO",
+    "target": {"name": "brightness", "task": "regression", "transformation": "log10_brightness_plus_one"},
+    "features": {
+        "name": "frozen_esm2",
+        "model_name": "facebook/esm2_t12_35M_UR50D",
+        "revision": "6fbf070e65b0b7291e7bbcd451118c216cff79d8",
+        "pooling": "final_hidden_state_residue_mean",
+        "embedding_dimension": 480,
+        "batch_size": 4,
+        "device": "auto",
+    },
+    "estimator": {"name": "ridge", "alpha": 1.0, "scaling": "standard_scaler_train_fold_only"},
+    "split": {"strategy": "exact_sequence_group_kfold", "folds": 5, "seed": 42},
+    "frozen_v2b": {
+        "artifact_dir": "results/v2b_representative_regression/run_20260906T155344Z",
+        "source_data_sha256": "a0b3490e8e14d5da81c6ccb5b4750aedbcfc04dee48fb9a23c0904aeea8f7568",
+        "representative_assignment_sha256": "729b4818111719828094e41ca050781a24f98f40998e746ef52f48a224af6064",
+        "fold_assignments_sha256": "fb4c39c0b8e05a32c8e1ad50b5d7fef74d50448734cb3ffdf865318abb00716a",
+        "cluster_assignments_sha256": "bcd50dd68f39c259613216c2b3810e1b361af6a6bb3f41974592b51499a16414",
+        "metadata_sha256": "70d5bf2448845d3fb09645c5dcbac6de571cdbc40e4c576a075632d48d99f257",
+    },
+    "models": ["mean_baseline", "median_baseline", "composition_ridge", "esm2_ridge"],
+}
+
+
 def validate_config(config: dict[str, Any]) -> dict[str, Any]:
     if config["scope"] not in {"gfp_only", "all_families"}:
         raise ValueError("scope must be 'gfp_only' or 'all_families'.")
@@ -245,3 +274,27 @@ def load_v3_config(path: str | Path = "configs/v3_frozen_esm2_ridge.yaml") -> di
     if not isinstance(supplied, dict):
         raise ValueError("Configuration root must be a mapping.")
     return validate_v3_config(_merge(DEFAULT_V3_CONFIG, supplied))
+
+
+def validate_v3_aequorea_diagnostic_config(config: dict[str, Any]) -> dict[str, Any]:
+    if config["experiment"] != "v3_aequorea_diagnostic":
+        raise ValueError("Requires experiment 'v3_aequorea_diagnostic'.")
+    if config["scope"] != "aequorea_cluster_only":
+        raise ValueError("Scope must be 'aequorea_cluster_only'.")
+    if config.get("target_cluster_id") != "cluster:WQUOO":
+        raise ValueError("target_cluster_id must be 'cluster:WQUOO'.")
+    if config["target"] != {"name": "brightness", "task": "regression", "transformation": "log10_brightness_plus_one"}:
+        raise ValueError("Supports log10(brightness + 1) regression only.")
+    if config["estimator"] != {"name": "ridge", "alpha": 1.0, "scaling": "standard_scaler_train_fold_only"}:
+        raise ValueError("Diagnostic uses fixed StandardScaler plus Ridge(alpha=1.0) only.")
+    if config["split"] != {"strategy": "exact_sequence_group_kfold", "folds": 5, "seed": 42}:
+        raise ValueError("Diagnostic uses exact_sequence_group_kfold with 5 folds and seed 42.")
+    return config
+
+
+def load_v3_aequorea_diagnostic_config(path: str | Path = "configs/v3_aequorea_diagnostic.yaml") -> dict[str, Any]:
+    with Path(path).open("r", encoding="utf-8") as handle:
+        supplied = yaml.safe_load(handle) or {}
+    if not isinstance(supplied, dict):
+        raise ValueError("Configuration root must be a mapping.")
+    return validate_v3_aequorea_diagnostic_config(_merge(DEFAULT_V3_AEQUOREA_DIAGNOSTIC_CONFIG, supplied))

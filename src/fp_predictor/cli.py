@@ -8,12 +8,13 @@ import sys
 from pathlib import Path
 
 from .clean import clean_to_disk
-from .config import load_config, load_v2_config, load_v2b_config, load_v3_config
+from .config import load_config, load_v2_config, load_v2b_config, load_v3_config, load_v3_aequorea_diagnostic_config
 from .fetch import fetch_to_cache, find_latest_raw, load_raw_records
 from .predict import PredictionError, predict_fasta
 from .train import train_experiment
 from .regression import train_regression_experiment, train_representative_regression_experiment
 from .v3 import train_v3_experiment
+from .v3_diagnostic import train_v3_aequorea_diagnostic
 
 
 def _config_argument(parser: argparse.ArgumentParser) -> None:
@@ -53,6 +54,13 @@ def build_parser() -> argparse.ArgumentParser:
     train_v2b.add_argument("--data", default="data/processed/all_families/fpbase_cleaned.csv")
     train_v2b.add_argument("--results-dir", default="results/v2b_representative_regression")
     train_v2b.add_argument("--source-metadata", help="raw-source metadata JSON; defaults beside --data")
+
+    train_v3_diag = commands.add_parser("train-v3-aequorea-diagnostic", help="V3 Aequorea local-interpolation diagnostic")
+    train_v3_diag.add_argument("--config", default="configs/v3_aequorea_diagnostic.yaml")
+    train_v3_diag.add_argument("--data", default="data/processed/all_families/fpbase_cleaned.csv")
+    train_v3_diag.add_argument("--results-dir", default="results/v3_aequorea_diagnostic")
+    train_v3_diag.add_argument("--cache-dir", default="data/cache/esm2_v3")
+    train_v3_diag.add_argument("--source-metadata", help="raw-source metadata JSON; defaults beside --data")
 
     train_v3 = commands.add_parser("train-v3", help="V3 frozen-ESM2 regression on exact frozen V2b folds")
     train_v3.add_argument("--config", default="configs/v3_frozen_esm2_ridge.yaml")
@@ -135,6 +143,21 @@ def main(argv: list[str] | None = None) -> int:
                 args.data, config, args.results_dir, source_metadata, cleaning_summary
             )
             print(f"V2b experiment complete: {run_directory}")
+            return 0
+        if args.command == "train-v3-aequorea-diagnostic":
+            config = load_v3_aequorea_diagnostic_config(args.config)
+            source_metadata = {}
+            metadata_path = Path(args.source_metadata) if args.source_metadata else Path(args.data).with_name("source_metadata.json")
+            if metadata_path.exists():
+                source_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            cleaning_summary = {}
+            cleaning_summary_path = Path(args.data).with_name("cleaning_summary.json")
+            if cleaning_summary_path.exists():
+                cleaning_summary = json.loads(cleaning_summary_path.read_text(encoding="utf-8"))
+            run_directory = train_v3_aequorea_diagnostic(
+                args.data, config, args.results_dir, args.cache_dir, source_metadata, cleaning_summary
+            )
+            print(f"V3 Aequorea diagnostic complete: {run_directory}")
             return 0
         if args.command == "train-v3":
             config = load_v3_config(args.config)
