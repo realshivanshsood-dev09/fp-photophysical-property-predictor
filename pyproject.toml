@@ -22,6 +22,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<9"]
+v3 = ["torch>=2.5,<3", "transformers>=4.46,<5", "huggingface_hub>=0.26,<1"]
 
 [project.scripts]
 fp-predictor = "fp_predictor.cli:main"

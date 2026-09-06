@@ -1,0 +1,36 @@
+# V3 changes representation only; all target and validation definitions are frozen from V2b.
+experiment: v3_frozen_esm2_ridge
+scope: all_families
+state_policy: default_only
+target:
+  name: brightness
+  task: regression
+  transformation: log10_brightness_plus_one
+features:
+  name: frozen_esm2
+  model_name: facebook/esm2_t12_35M_UR50D
+  revision: 6fbf070e65b0b7291e7bbcd451118c216cff79d8
+  pooling: final_hidden_state_residue_mean
+  embedding_dimension: 480
+  batch_size: 4
+  device: auto
+estimator:
+  name: ridge
+  alpha: 1.0
+  scaling: standard_scaler_train_fold_only
+split:
+  strategy: frozen_v2b_representative_cluster_kfold
+  folds: 5
+  seed: 42
+frozen_v2b:
+  artifact_dir: results/v2b_representative_regression/run_20260906T155344Z
+  source_data_sha256: a0b3490e8e14d5da81c6ccb5b4750aedbcfc04dee48fb9a23c0904aeea8f7568
+  representative_assignment_sha256: 729b4818111719828094e41ca050781a24f98f40998e746ef52f48a224af6064
+  fold_assignments_sha256: fb4c39c0b8e05a32c8e1ad50b5d7fef74d50448734cb3ffdf865318abb00716a
+  cluster_assignments_sha256: bcd50dd68f39c259613216c2b3810e1b361af6a6bb3f41974592b51499a16414
+  metadata_sha256: 70d5bf2448845d3fb09645c5dcbac6de571cdbc40e4c576a075632d48d99f257
+models:
+  - mean_baseline
+  - median_baseline
+  - composition_ridge
+  - esm2_ridge

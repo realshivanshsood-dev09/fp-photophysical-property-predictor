@@ -6,6 +6,7 @@ __pycache__/
 *.egg-info/
 data/raw/*.json
 !data/raw/.gitkeep
+data/cache/
 data/processed/*.csv
 data/processed/*.json
 data/processed/**/*.csv

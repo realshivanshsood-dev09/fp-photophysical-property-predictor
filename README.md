@@ -191,3 +191,22 @@ fp-predictor train-v2b --config configs/v2b_representative_regression.yaml \
 ```
 
 The validated V2b artifacts are [`results/v2b_representative_regression/run_20260906T155344Z`](results/v2b_representative_regression/run_20260906T155344Z). They include model and source metadata, fixed alignment parameters, assignment hash, cluster statistics, representative identities, observation-to-cluster and observation-to-fold maps, and per-fold/aggregate metrics.
+
+## V3: frozen contextual-sequence representation experiment
+
+V3 is a separate, controlled representation experiment. It preserves the frozen V2b 601-observation data file, `log10(brightness + 1)` target, record-to-cluster map, record-to-fold map, five validation partitions, and metrics. It refuses to run if the input-data hash, V2b metadata hash, cluster-assignment hash, fold-assignment hash, or V2b representative-assignment hash differ from the pinned V2b artifact.
+
+The sole new primary representation is frozen [`facebook/esm2_t12_35M_UR50D`](https://huggingface.co/facebook/esm2_t12_35M_UR50D), pinned to revision `6fbf070e65b0b7291e7bbcd451118c216cff79d8`. V3 takes the final hidden layer and mean-pools residue tokens only, excluding special and padding tokens. It never truncates a sequence, uses inference/evaluation mode only, caches 480-dimensional embeddings by normalized sequence and representation specification, and uses no brightness information to construct embeddings.
+
+The pre-specified downstream model is fold-local `StandardScaler` plus `Ridge(alpha=1.0)`. Mean/median and matched composition-Ridge baselines are rerun on the frozen assignments; the V2b Gradient Boosting result is retained as a historical, non-selected compact-feature benchmark. V3 has no fine-tuning, adapters, PCA, feature selection, hyperparameter search, layer/pooling search, new clustering, or tree model over embeddings.
+
+```bash
+fp-predictor train-v3 --config configs/v3_frozen_esm2_ridge.yaml \
+  --data data/processed/all_families/fpbase_cleaned.csv \
+  --cache-dir data/cache/esm2_v3 \
+  --results-dir results/v3_frozen_esm2_ridge
+```
+
+The Aequorea-enriched within-cluster diagnostic is deliberately not part of this primary V3 command.
+
+The completed primary V3 artifact is [`results/v3_frozen_esm2_ridge/run_20260906T184103Z`](results/v3_frozen_esm2_ridge/run_20260906T184103Z). It serializes the frozen V2b verification, ESM-2 snapshot and file hashes, cache manifest, out-of-fold predictions, per-fold metrics, matched baselines, and the frozen V2b Gradient Boosting benchmark context.
