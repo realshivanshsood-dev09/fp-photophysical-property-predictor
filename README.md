@@ -1,12 +1,31 @@
 # FP Photophysical Property Predictor
 
-A small, reproducible fluorescent-protein (FP) sequence-to-photophysics framework. V1 asks a deliberately limited question: can compact, sequence-derived physicochemical descriptors predict **FPbase brightness** tiers when exact and obviously near-identical sequences are kept out of the same validation fold?
+A small fluorescent-protein (FP) sequence-to-photophysics benchmarking framework. V1 asks a deliberately limited question: can compact, sequence-derived physicochemical descriptors predict **FPbase brightness** tiers when exact and obviously near-identical sequences are kept out of the same validation fold? Subsequent V2 and V3 experiments extend this to continuous brightness regression across homology-separated sequence clusters and contextual protein language model embeddings.
 
 This is research software and an exploratory benchmark—not a validated FP design tool or a claim of biological mechanism.
 
-## Current validated snapshot
+## Validation Status
 
-The checked run uses an immutable public FPbase GraphQL snapshot retrieved on 2026-09-06. It contains 1,042 proteins. Under `default_only` state handling:
+Models were evaluated using leakage-controlled cross-validation and a secondary local-interpolation diagnostic. Independent external-dataset validation and prospective experimental validation were not performed.
+
+| Evaluation Dimension | Status | Description |
+| :--- | :--- | :--- |
+| **Internal leakage-controlled CV** | **Completed** | Grouped K-fold across sequence-neighborhoods (V1) and 70% homology clusters (V2a/V2b/V3). |
+| **Out-of-fold predictions** | **Completed** | Strict held-out cluster evaluation preventing sample-level and group-level data leakage. |
+| **Reproducible frozen artifacts** | **Completed** | Cryptographically hashed configurations, metadata, embeddings, and fold assignments. |
+| **Local interpolation diagnostic** | **Completed** | 5-fold CV within the 154-observation Aequorea cluster with exact-sequence grouping. |
+| **Independent external-dataset validation** | **Not performed** | No independent external cohort was evaluated outside the FPbase dataset snapshot. |
+| **Prospective experimental validation** | **Not performed** | No wet-lab synthesis or prospective experimental testing of novel variants was performed. |
+
+Reproducible from the documented configurations and frozen artifacts, subject to the stated software/environment and external-data limitations.
+
+## Scientific Synthesis
+
+The experiments indicate that sequence-based representations can capture local sequence–brightness associations within a densely sampled, closely related Aequorea sequence cluster, while reliable transfer to held-out sequence clusters was not demonstrated under the evaluated benchmarks. Replacing compact composition features with frozen ESM-2 embeddings did not rescue held-out-cluster prediction.
+
+## Dataset and Cohort Definition
+
+The evaluated run uses an immutable public FPbase GraphQL snapshot retrieved on 2026-09-06. It contains 1,042 proteins. Under `default_only` state handling:
 
 | Stage | All families | GFP-name heuristic |
 | --- | ---: | ---: |
@@ -27,15 +46,15 @@ Acquisition uses FPbase’s supported public GraphQL entrypoint, `https://www.fp
 
 Each FPbase protein can have several states. `state_policy: default_only` uses FPbase’s API-designated `defaultState` and preserves its original state ID. `all_states` is supported, but makes protein-state rows the analysis unit; all states from one protein remain in the same leakage-control group.
 
-FPbase brightness is the continuous canonical target throughout cleaning. When both measurements are present, `extCoeff × qy / 1000` is recorded only as a QA reconstruction. In the validated all-family run it was available for 600 records, with mean absolute difference 0.00099 brightness units and maximum 0.005 from supplied FPbase brightness. It is never a model feature or a replacement target.
+FPbase brightness is the continuous canonical target throughout cleaning. When both measurements are present, `extCoeff × qy / 1000` is recorded only as a QA reconstruction. In the evaluated all-family run it was available for 600 records, with mean absolute difference 0.00099 brightness units and maximum 0.005 from supplied FPbase brightness. It is never a model feature or a replacement target.
 
 The all-family set includes 550 records with no listed cofactor and 51 with a listed cofactor (mostly biliverdin or flavin). Cofactor is retained as provenance, not a feature or silent exclusion. This broadens coverage but is a real limitation: a sequence-only model cannot represent cofactor availability or experimental context.
 
 ## Leakage control: sequence grouping, not lineage grouping
 
-FPbase documentation describes protein lineages, but its audited public GraphQL types do **not** expose the parent/child edges required to recover engineering ancestry. `parent_organism` is retained as metadata only and is never used as a lineage proxy. Consequently, this project does not claim lineage-aware evaluation from public FPbase data alone.
+FPbase documentation describes protein lineages, but its audited public GraphQL types do **not** expose the parent/child edges required to recover engineering ancestry. Public FPbase data available to this project did not provide verified parent-child engineering ancestry sufficient for true lineage-aware splitting. `parent_organism` is retained as metadata only and is never used as a lineage proxy. Consequently, this project does not claim lineage-aware evaluation from public FPbase data alone.
 
-Default leakage-control groups are connected components of:
+Default leakage-control groups for V1 are connected components of:
 
 1. exact amino-acid sequence identity; and
 2. same-length sequence pairs with positional identity at least 95%.
@@ -57,13 +76,13 @@ The model matrix has 39 deterministic sequence-only features (feature version 1.
 
 Brightness, EC, QY, EC×QY, spectral maxima, lifetime, maturation, pKa, cofactor, source maps, references, and all other FPbase measurements are excluded from model inputs. Global features do not capture the three-dimensional chromophore environment. No chromophore-local feature is included: there is no robust sequence-position mapping valid across the broad family scope.
 
-## Evaluation protocol and results
+## V1: tertile classification evaluation
 
-`LOW`, `MEDIUM`, and `HIGH` are operational training-distribution tertiles, not biological brightness classes. Brightness remains continuous; classification imposes dataset-derived boundaries on a noisy continuous measurement and can create boundary effects. In every fold, the two thresholds are fit only to that fold’s training brightness values and then applied to validation records. Final deployment thresholds are fit once on the designated complete training data and saved in the artifact. Regression or ranking on continuous brightness is a v2 direction, not part of this benchmark.
+`LOW`, `MEDIUM`, and `HIGH` are operational training-distribution tertiles, not biological brightness classes. Brightness remains continuous; classification imposes dataset-derived boundaries on a noisy continuous measurement and can create boundary effects. In every fold, the two thresholds are fit only to that fold’s training brightness values and then applied to validation records. Final deployment thresholds are fit once on the designated complete training data and saved in the artifact.
 
 Folds allocate whole sequence-neighborhood groups with a seeded, sample-count-balanced `sequence_neighborhood_group_kfold` algorithm; brightness is not used to construct folds. The code asserts no train/validation group overlap. Scaling is inside the logistic-regression pipeline. Majority and stratified-random baselines use training labels only.
 
-The validated all-family 5-fold run (`601` observations; `215` groups; class counts `199/201/201`) produced:
+The evaluated all-family 5-fold run (`601` observations; `215` groups; class counts `199/201/201`) produced:
 
 | Model | Macro-F1 (mean ± SD) | Balanced accuracy | Accuracy |
 | --- | --- | --- | --- |
@@ -75,7 +94,7 @@ The validated all-family 5-fold run (`601` observations; `215` groups; class cou
 
 Random forest is selected for that run: it is the only learned model within one top-model standard deviation under the stored model-selection policy. Per-fold precision, recall, F1, supports, aggregate per-class summaries, and confusion matrices are saved in the run directory. The result is exploratory evidence of signal under this particular sequence-neighborhood grouped CV—not evidence of performance on homology-separated or novel FP scaffolds, universal mechanistic prediction across FP families, or prospective FP-design utility.
 
-The validated artifacts are [`results/all_families/run_20260906T150216Z`](results/all_families/run_20260906T150216Z) and the GFP sensitivity run [`results/gfp_only/run_20260906T150237Z`](results/gfp_only/run_20260906T150237Z).
+The reproducible evaluation artifacts are [`results/all_families/run_20260906T150216Z`](results/all_families/run_20260906T150216Z) and the GFP sensitivity run [`results/gfp_only/run_20260906T150237Z`](results/gfp_only/run_20260906T150237Z).
 
 The GFP-name sensitivity analysis has 30 observations but only 9 sequence-neighborhood groups. It uses 3 grouped folds because 5 folds would produce 3–10-observation validation folds with absent classes. Its results are too sparse for meaningful model selection and should not be compared directly with the all-family experiment:
 
@@ -138,9 +157,9 @@ V2 uses the same corrected 39 sequence-only features (v1.1). Sequence length rem
 
 For V2a and V2b, a 70% alignment-based sequence-identity threshold was pre-specified as an operational homology-clustering criterion to provide a substantially stricter generalization test than V1 near-duplicate grouping. It is **not** a universal definition of biological homology. Pairs are aligned using global Needleman--Wunsch alignment with match `+1`, mismatch `-1`, and linear gap penalty `-1` per residue. Identity is exactly `identical residue-residue alignment columns / all global-alignment columns, including gap columns`.
 
-In V2a, an edge joins records at identity >= 0.70; deterministic connected components are held out as whole units. Thus unequal-length sequences are eligible to cluster and A--B--C chains are held together transitively. This is *alignment-based single-linkage sequence-similarity clustering*, not lineage-aware CV: public FPbase GraphQL still lacks engineering parent/child edges.
+In V2a, an edge joins records at identity >= 0.70; deterministic connected components are held out as whole units. Thus unequal-length sequences are eligible to cluster and A--B--C chains are held together transitively. This is *alignment-based single-linkage sequence-similarity clustering*, not lineage-aware CV: public FPbase GraphQL lacks engineering parent/child edges.
 
-The fresh V2a run produced 64 clusters (23 singleton clusters; 41 clusters with >1 observation; median size 2; largest size 154; 20,244 graph edges), so the pre-specified five folds are feasible but uneven cluster sizes remain an important uncertainty. Fold allocation uses only cluster IDs, their sizes, and seed 42.
+The V2a run produced 64 clusters (23 singleton clusters; 41 clusters with >1 observation; median size 2; largest size 154; 20,244 graph edges), so the pre-specified five folds are feasible but uneven cluster sizes remain an important uncertainty. Fold allocation uses only cluster IDs, their sizes, and seed 42.
 
 Both V2 experiments evaluate mean and median baselines plus fixed-hyperparameter Ridge, Elastic Net, random-forest regressor, and gradient-boosting regressor. The pre-specified selection criterion is mean validation Spearman rho; Pearson r, RMSE, MAE, and R² are computed on `log10(brightness + 1)`. Spearman is unchanged by this monotonic transform and is rank-equivalent to raw brightness. Raw-space RMSE/MAE are retained only as supplementary artifacts. Constant baselines have undefined Spearman rho.
 
@@ -153,17 +172,9 @@ Both V2 experiments evaluate mean and median baselines plus fixed-hyperparameter
 | Random forest regressor | -0.011 ± 0.080 | 0.067 ± 0.144 | 0.523 ± 0.088 | 0.419 ± 0.064 | -0.175 ± 0.066 |
 | Gradient boosting regressor | -0.008 ± 0.120 | 0.060 ± 0.131 | 0.516 ± 0.085 | 0.417 ± 0.067 | -0.142 ± 0.071 |
 
-Gradient boosting is selected mechanically by the prespecified mean-Spearman rule, not because this establishes useful prediction. Under this strict V2a cluster definition, the result does not demonstrate above-baseline rank prediction; it does not establish mechanistic understanding or prospective design utility.
+Gradient boosting is selected mechanically by the prespecified mean-Spearman rule. Reliable predictive signal was not demonstrated under the evaluated held-out single-linkage benchmark; it does not establish mechanistic understanding or prospective design utility.
 
-Run V2 after the standard fetch/clean commands:
-
-```bash
-fp-predictor train-v2 --config configs/v2_homology_regression.yaml \
-  --data data/processed/all_families/fpbase_cleaned.csv \
-  --results-dir results/v2_homology_regression
-```
-
-The validated V2a artifacts are [`results/v2_homology_regression/run_20260906T152552Z`](results/v2_homology_regression/run_20260906T152552Z). They include the model, alignment-graph edge list/hash, cluster statistics, fold assignments, fold metrics, fixed hyperparameters, source provenance, and software versions.
+The reproducible V2a artifacts are [`results/v2_homology_regression/run_20260906T152552Z`](results/v2_homology_regression/run_20260906T152552Z). They include the model, alignment-graph edge list/hash, cluster statistics, fold assignments, fold metrics, fixed hyperparameters, source provenance, and software versions.
 
 ## V2b: alignment-based representative clustering
 
@@ -184,13 +195,7 @@ V2b produced 74 clusters: 25 singleton clusters, 49 multi-observation clusters, 
 
 Gradient boosting is selected by the same pre-specified mean-Spearman rule. V2b’s positive mean association and lower mean errors versus the location baselines are exploratory evidence under this alternative partition, but its large fold variability means it does not establish robust homology-independent prediction, mechanistic causality, or prospective FP-design performance.
 
-```bash
-fp-predictor train-v2b --config configs/v2b_representative_regression.yaml \
-  --data data/processed/all_families/fpbase_cleaned.csv \
-  --results-dir results/v2b_representative_regression
-```
-
-The validated V2b artifacts are [`results/v2b_representative_regression/run_20260906T155344Z`](results/v2b_representative_regression/run_20260906T155344Z). They include model and source metadata, fixed alignment parameters, assignment hash, cluster statistics, representative identities, observation-to-cluster and observation-to-fold maps, and per-fold/aggregate metrics.
+The reproducible V2b artifacts are [`results/v2b_representative_regression/run_20260906T155344Z`](results/v2b_representative_regression/run_20260906T155344Z). They include model and source metadata, fixed alignment parameters, assignment hash, cluster statistics, representative identities, observation-to-cluster and observation-to-fold maps, and per-fold/aggregate metrics.
 
 ## V3: frozen contextual-sequence representation experiment
 
@@ -205,19 +210,12 @@ The pre-specified downstream model is fold-local `StandardScaler` plus `Ridge(al
 | Mean baseline | undefined | 0.000 ± 0.000 | 0.501 ± 0.056 | 0.407 ± 0.043 | -0.015 ± 0.014 |
 | Median baseline | undefined | 0.000 ± 0.000 | 0.507 ± 0.063 | 0.402 ± 0.048 | -0.037 ± 0.039 |
 | Composition Ridge | 0.042 ± 0.293 | 0.099 ± 0.229 | 0.563 ± 0.076 | 0.438 ± 0.055 | -0.320 ± 0.333 |
-| Frozen ESM-2 Ridge | 0.136 ± 0.159 | 0.087 ± 0.125 | 0.822 ± 0.165 | 0.601 ± 0.078 | -1.784 ± 0.999 |
+| Frozen ESM-2 Ridge | 0.136 ± 0.159 | 0.087 ± 0.125 | 0.822 ± 0.141 | 0.601 ± 0.078 | -1.784 ± 0.739 |
 | Historical V2b Gradient Boosting | 0.221 ± 0.247 | 0.249 ± 0.239 | 0.479 ± 0.062 | 0.379 ± 0.043 | 0.063 ± 0.154 |
 
-Under the cross-scaffold V2b representative-cluster split, frozen ESM-2 embeddings with Ridge regression do not yield strong or reliable brightness prediction (Spearman rho 0.136 ± 0.159, R² -1.784 ± 0.999), reflecting the severe difficulty of out-of-fold generalization across divergent fluorescent protein scaffolds without scaffold-specific calibration or structure/chromophore context.
+Under the held-out V2b representative-cluster partition, reliable predictive signal was not demonstrated for frozen ESM-2 embeddings with Ridge regression (Spearman rho 0.136 ± 0.159, R² -1.784 ± 0.739). Replacing compact composition features with frozen ESM-2 embeddings did not rescue held-out-cluster prediction.
 
-```bash
-fp-predictor train-v3 --config configs/v3_frozen_esm2_ridge.yaml \
-  --data data/processed/all_families/fpbase_cleaned.csv \
-  --cache-dir data/cache/esm2_v3 \
-  --results-dir results/v3_frozen_esm2_ridge
-```
-
-The completed primary V3 artifact is [`results/v3_frozen_esm2_ridge/run_20260906T184103Z`](results/v3_frozen_esm2_ridge/run_20260906T184103Z). It serializes the frozen V2b verification, ESM-2 snapshot and file hashes, cache manifest, out-of-fold predictions, per-fold metrics, matched baselines, and the frozen V2b Gradient Boosting benchmark context.
+The reproducible primary V3 artifact is [`results/v3_frozen_esm2_ridge/run_20260906T184103Z`](results/v3_frozen_esm2_ridge/run_20260906T184103Z). It serializes the frozen V2b verification, ESM-2 snapshot and file hashes, cache manifest, out-of-fold predictions, per-fold metrics, matched baselines, and the frozen V2b Gradient Boosting benchmark context.
 
 ## V3 secondary: Aequorea local-interpolation diagnostic
 
@@ -226,7 +224,7 @@ To isolate whether sequence representations contain local photophysical signal w
 This experiment is explicitly a **local interpolation diagnostic**. It is **not** lineage-aware prediction, **not** unseen-scaffold generalization, and **not** prospective variant design.
 
 Protocol:
-- Cohort: 154 observations belonging to `cluster:WQUOO`.
+- Cohort: 154 observations belonging to the densely sampled, closely related Aequorea sequence cluster (`cluster:WQUOO`).
 - Splitting: 5-fold CV (seed 42), grouping exact sequence duplicates by normalized sequence SHA-256 (leaving 136 unique sequence groups across the 154 observations).
 - Downstream models: fold-local `StandardScaler` + `Ridge(alpha=1.0)` on compact physicochemical features (Composition Ridge) vs. frozen ESM-2 embeddings (Frozen ESM-2 Ridge).
 - No hyperparameter tuning, no PCA, no tree models, no fine-tuning.
@@ -238,10 +236,64 @@ Protocol:
 | Composition Ridge | 0.503 ± 0.182 | 0.458 ± 0.170 | 0.364 ± 0.053 | 0.284 ± 0.034 | 0.087 ± 0.234 |
 | Frozen ESM-2 Ridge | 0.563 ± 0.120 | 0.531 ± 0.106 | 0.439 ± 0.100 | 0.310 ± 0.053 | -0.241 ± 0.186 |
 
-Within this single scaffold neighborhood, both sequence representations show substantial local rank correlation (Spearman rho ~0.50–0.56), confirming that sequence variation within a family correlates with brightness variation locally. However, when evaluating out-of-fold generalization across divergent scaffolds (as in primary V2a/V2b/V3), this correlation drops sharply, illustrating that sequence-level models do not generalize across distinct FP families.
+Within this densely sampled, closely related Aequorea sequence cluster, both sequence representations demonstrate substantial local sequence–brightness association (Spearman rho ~0.50–0.56). However, this local association does not imply mutational ancestry, and reliable transfer across divergent held-out sequence clusters was not demonstrated under the primary cross-cluster benchmarks.
+
+The reproducible diagnostic artifact is [`results/v3_aequorea_diagnostic/run_20260906T190049Z`](results/v3_aequorea_diagnostic/run_20260906T190049Z).
+
+## Installation and use
 
 ```bash
+python -m venv .venv
+# Windows: .venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+pip install -e .[dev]
+
+# 1. Immutable current-data snapshot & cleaning
+fp-predictor fetch --force
+fp-predictor clean --config configs/default.yaml
+
+# 2. V1: 3-class tertile classification
+fp-predictor train --config configs/default.yaml
+
+# 3. V2a: 70% single-linkage continuous regression
+fp-predictor train-v2 --config configs/v2_homology_regression.yaml
+
+# 4. V2b: 70% representative clustering continuous regression
+fp-predictor train-v2b --config configs/v2b_representative_regression.yaml
+
+# 5. V3: Frozen ESM-2 representation benchmark
+fp-predictor train-v3 --config configs/v3_frozen_esm2_ridge.yaml
+
+# 6. V3 secondary: Aequorea local-interpolation diagnostic
 fp-predictor train-v3-aequorea-diagnostic --config configs/v3_aequorea_diagnostic.yaml
 ```
 
-The completed diagnostic artifact is [`results/v3_aequorea_diagnostic/run_20260906T190049Z`](results/v3_aequorea_diagnostic/run_20260906T190049Z).
+The predict command accepts multi-FASTA input and can write a CSV via `--output`:
+
+```bash
+fp-predictor predict examples/example.fasta --model results/all_families/run_20260906T150216Z/model.joblib
+```
+
+It rejects malformed FASTA, empty sequences, unsupported residues, missing models, and incompatible artifacts.
+
+## Test suite and prior art
+
+```bash
+pytest
+```
+
+Tests use local fixtures and cover GraphQL pagination/malformed responses, cleaning attrition, state IDs, EC×QY QA, exact and near-duplicate grouping, transitive components, sidecar chains/missing parents/cycles, deterministic features, leakage-free groups, training-only thresholds, serialization, V2 homology clustering, V3 ESM-2 protocol verification, and FASTA prediction.
+
+FPredX is Tam C, Zhang KYJ, *FPredX: Interpretable models for the prediction of spectral maxima, brightness, and oligomeric states of fluorescent proteins*, **Proteins** 90(3):732–746 (2022; online 2021), [doi:10.1002/prot.26270](https://doi.org/10.1002/prot.26270). It uses aligned one-hot sequences and gradient-boosted trees for several FP targets. Its data, splits, and evaluation differ from this repository, so no direct numerical comparison is claimed. The cited “Wu et al., Proteins, 2024” attribution is not the verified FPredX publication. No unambiguous primary source was found for the requested 2026 FPbase QY/structure-graph work or a specific RFP-variant claim, so neither is cited as established prior art here.
+
+## Limitations
+
+1. **Heterogeneous Measurement Conditions**: FPbase aggregates measurements from heterogeneous experimental contexts; potential measurement heterogeneity and label noise arise from differing experimental conditions (pH, buffer, temperature, maturation time, instrument calibration).
+2. **Leakage Control vs. True Lineage**: Sequence-similarity clustering (95% same-length in V1, 70% alignment-based in V2/V3) is an operational leakage-control proxy, not true lineage reconstruction. Public FPbase GraphQL data does not expose parent-child engineering ancestry edges.
+3. **Cluster Size Imbalance**: The 154-observation Aequorea cluster is large relative to the total cohort (601 observations) and forms a complete held-out representative cluster in one fold of the V2b partition, contributing substantial fold variability.
+4. **Exploratory Benchmark Status**: V1, V2a, V2b, and V3 are exploratory benchmark experiments rather than validated biophysical predictors.
+5. **Absence of External Validation**: Independent external-dataset validation was not performed.
+6. **Absence of Prospective Validation**: Prospective experimental validation (e.g., wet-lab mutagenesis and synthesis) was not performed.
+7. **Uncalibrated Probabilities**: `predict_proba` outputs reflect tree-vote fractions or uncalibrated logistic outputs, not validated confidence.
+8. **Novel Scaffold Utility**: Reliable scoring of novel FP scaffolds was not demonstrated under the evaluated held-out-cluster benchmarks.
+9. **Cofactor and Context Blindness**: Sequence-only featurization cannot represent exogenous cofactor availability (e.g., biliverdin, flavin) or 3D chromophore environment.
