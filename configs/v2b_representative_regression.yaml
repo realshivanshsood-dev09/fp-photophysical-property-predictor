@@ -1,0 +1,27 @@
+# V2b differs from V2a only in its pre-specified clustering rule.
+experiment: v2b_representative_regression
+scope: all_families
+state_policy: default_only
+target:
+  name: brightness
+  task: regression
+  transformation: log10_brightness_plus_one
+features:
+  name: composition
+  version: "1.1"
+split:
+  strategy: representative_cluster_kfold
+  folds: 5
+  seed: 42
+homology:
+  clustering_strategy: deterministic_representative_sequence_similarity
+  alignment_method: needleman_wunsch_global_linear_gap
+  identity_definition: identical_residue_columns / all_global_alignment_columns_including_gaps
+  identity_threshold: 0.70
+models:
+  - mean_baseline
+  - median_baseline
+  - ridge
+  - elastic_net
+  - random_forest_regressor
+  - gradient_boosting_regressor

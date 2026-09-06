@@ -8,10 +8,11 @@ import sys
 from pathlib import Path
 
 from .clean import clean_to_disk
-from .config import load_config
+from .config import load_config, load_v2_config, load_v2b_config
 from .fetch import fetch_to_cache, find_latest_raw, load_raw_records
 from .predict import PredictionError, predict_fasta
 from .train import train_experiment
+from .regression import train_regression_experiment, train_representative_regression_experiment
 
 
 def _config_argument(parser: argparse.ArgumentParser) -> None:
@@ -39,6 +40,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--source-metadata",
         help="raw-source metadata JSON; defaults to source_metadata.json beside --data",
     )
+
+    train_v2 = commands.add_parser("train-v2", help="V2 homology-cluster-held-out brightness regression")
+    train_v2.add_argument("--config", default="configs/v2_homology_regression.yaml")
+    train_v2.add_argument("--data", default="data/processed/all_families/fpbase_cleaned.csv")
+    train_v2.add_argument("--results-dir", default="results/v2_homology_regression")
+    train_v2.add_argument("--source-metadata", help="raw-source metadata JSON; defaults beside --data")
+
+    train_v2b = commands.add_parser("train-v2b", help="V2b representative-cluster-held-out brightness regression")
+    train_v2b.add_argument("--config", default="configs/v2b_representative_regression.yaml")
+    train_v2b.add_argument("--data", default="data/processed/all_families/fpbase_cleaned.csv")
+    train_v2b.add_argument("--results-dir", default="results/v2b_representative_regression")
+    train_v2b.add_argument("--source-metadata", help="raw-source metadata JSON; defaults beside --data")
 
     predict = commands.add_parser("predict", help="predict tiers for one or more FASTA records")
     predict.add_argument("fasta")
@@ -84,6 +97,36 @@ def main(argv: list[str] | None = None) -> int:
                 args.data, config, args.results_dir, source_metadata, cleaning_summary
             )
             print(f"Experiment complete: {run_directory}")
+            return 0
+        if args.command == "train-v2":
+            config = load_v2_config(args.config)
+            source_metadata = {}
+            metadata_path = Path(args.source_metadata) if args.source_metadata else Path(args.data).with_name("source_metadata.json")
+            if metadata_path.exists():
+                source_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            cleaning_summary = {}
+            cleaning_summary_path = Path(args.data).with_name("cleaning_summary.json")
+            if cleaning_summary_path.exists():
+                cleaning_summary = json.loads(cleaning_summary_path.read_text(encoding="utf-8"))
+            run_directory = train_regression_experiment(
+                args.data, config, args.results_dir, source_metadata, cleaning_summary
+            )
+            print(f"V2 experiment complete: {run_directory}")
+            return 0
+        if args.command == "train-v2b":
+            config = load_v2b_config(args.config)
+            source_metadata = {}
+            metadata_path = Path(args.source_metadata) if args.source_metadata else Path(args.data).with_name("source_metadata.json")
+            if metadata_path.exists():
+                source_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            cleaning_summary = {}
+            cleaning_summary_path = Path(args.data).with_name("cleaning_summary.json")
+            if cleaning_summary_path.exists():
+                cleaning_summary = json.loads(cleaning_summary_path.read_text(encoding="utf-8"))
+            run_directory = train_representative_regression_experiment(
+                args.data, config, args.results_dir, source_metadata, cleaning_summary
+            )
+            print(f"V2b experiment complete: {run_directory}")
             return 0
         if args.command == "predict":
             result = predict_fasta(args.fasta, args.model)
