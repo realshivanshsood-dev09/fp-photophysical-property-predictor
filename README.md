@@ -200,6 +200,16 @@ The sole new primary representation is frozen [`facebook/esm2_t12_35M_UR50D`](ht
 
 The pre-specified downstream model is fold-local `StandardScaler` plus `Ridge(alpha=1.0)`. Mean/median and matched composition-Ridge baselines are rerun on the frozen assignments; the V2b Gradient Boosting result is retained as a historical, non-selected compact-feature benchmark. V3 has no fine-tuning, adapters, PCA, feature selection, hyperparameter search, layer/pooling search, new clustering, or tree model over embeddings.
 
+| Model | Spearman rho | Pearson r | RMSE (log) | MAE (log) | R² (log) |
+| --- | --- | --- | --- | --- | --- |
+| Mean baseline | undefined | 0.000 ± 0.000 | 0.501 ± 0.056 | 0.407 ± 0.043 | -0.015 ± 0.014 |
+| Median baseline | undefined | 0.000 ± 0.000 | 0.507 ± 0.063 | 0.402 ± 0.048 | -0.037 ± 0.039 |
+| Composition Ridge | 0.042 ± 0.293 | 0.099 ± 0.229 | 0.563 ± 0.076 | 0.438 ± 0.055 | -0.320 ± 0.333 |
+| Frozen ESM-2 Ridge | 0.136 ± 0.159 | 0.087 ± 0.125 | 0.822 ± 0.165 | 0.601 ± 0.078 | -1.784 ± 0.999 |
+| Historical V2b Gradient Boosting | 0.221 ± 0.247 | 0.249 ± 0.239 | 0.479 ± 0.062 | 0.379 ± 0.043 | 0.063 ± 0.154 |
+
+Under the cross-scaffold V2b representative-cluster split, frozen ESM-2 embeddings with Ridge regression do not yield strong or reliable brightness prediction (Spearman rho 0.136 ± 0.159, R² -1.784 ± 0.999), reflecting the severe difficulty of out-of-fold generalization across divergent fluorescent protein scaffolds without scaffold-specific calibration or structure/chromophore context.
+
 ```bash
 fp-predictor train-v3 --config configs/v3_frozen_esm2_ridge.yaml \
   --data data/processed/all_families/fpbase_cleaned.csv \
@@ -207,6 +217,31 @@ fp-predictor train-v3 --config configs/v3_frozen_esm2_ridge.yaml \
   --results-dir results/v3_frozen_esm2_ridge
 ```
 
-The Aequorea-enriched within-cluster diagnostic is deliberately not part of this primary V3 command.
-
 The completed primary V3 artifact is [`results/v3_frozen_esm2_ridge/run_20260906T184103Z`](results/v3_frozen_esm2_ridge/run_20260906T184103Z). It serializes the frozen V2b verification, ESM-2 snapshot and file hashes, cache manifest, out-of-fold predictions, per-fold metrics, matched baselines, and the frozen V2b Gradient Boosting benchmark context.
+
+## V3 secondary: Aequorea local-interpolation diagnostic
+
+To isolate whether sequence representations contain local photophysical signal when scaffold variation is held constant, a secondary diagnostic was conducted strictly within the largest single cluster: the 154-observation Aequorea representative cluster (`cluster:WQUOO`) from the frozen V2b dataset.
+
+This experiment is explicitly a **local interpolation diagnostic**. It is **not** lineage-aware prediction, **not** unseen-scaffold generalization, and **not** prospective variant design.
+
+Protocol:
+- Cohort: 154 observations belonging to `cluster:WQUOO`.
+- Splitting: 5-fold CV (seed 42), grouping exact sequence duplicates by normalized sequence SHA-256 (leaving 136 unique sequence groups across the 154 observations).
+- Downstream models: fold-local `StandardScaler` + `Ridge(alpha=1.0)` on compact physicochemical features (Composition Ridge) vs. frozen ESM-2 embeddings (Frozen ESM-2 Ridge).
+- No hyperparameter tuning, no PCA, no tree models, no fine-tuning.
+
+| Model | Spearman rho | Pearson r | RMSE (log) | MAE (log) | R² (log) |
+| --- | --- | --- | --- | --- | --- |
+| Mean baseline | undefined | 0.000 ± 0.000 | 0.400 ± 0.074 | 0.316 ± 0.053 | -0.041 ± 0.062 |
+| Median baseline | undefined | 0.000 ± 0.000 | 0.401 ± 0.075 | 0.315 ± 0.054 | -0.044 ± 0.065 |
+| Composition Ridge | 0.503 ± 0.182 | 0.458 ± 0.170 | 0.364 ± 0.053 | 0.284 ± 0.034 | 0.087 ± 0.234 |
+| Frozen ESM-2 Ridge | 0.563 ± 0.120 | 0.531 ± 0.106 | 0.439 ± 0.100 | 0.310 ± 0.053 | -0.241 ± 0.186 |
+
+Within this single scaffold neighborhood, both sequence representations show substantial local rank correlation (Spearman rho ~0.50–0.56), confirming that sequence variation within a family correlates with brightness variation locally. However, when evaluating out-of-fold generalization across divergent scaffolds (as in primary V2a/V2b/V3), this correlation drops sharply, illustrating that sequence-level models do not generalize across distinct FP families.
+
+```bash
+fp-predictor train-v3-aequorea-diagnostic --config configs/v3_aequorea_diagnostic.yaml
+```
+
+The completed diagnostic artifact is [`results/v3_aequorea_diagnostic/run_20260906T190049Z`](results/v3_aequorea_diagnostic/run_20260906T190049Z).
